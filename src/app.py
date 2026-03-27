@@ -10,9 +10,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+from threading import Lock
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
+
+signup_lock = Lock()
 
 # Mount the static files directory
 current_dir = Path(__file__).parent
@@ -51,6 +54,18 @@ activities = {
         "max_participants": 20,
         "participants": []
     },
+    "Basketball Team": {
+        "description": "Team practices focused on game strategy, drills, and competitive matches",
+        "schedule": "Mondays and Thursdays, 4:00 PM - 5:30 PM",
+        "max_participants": 18,
+        "participants": []
+    },
+    "Track and Field": {
+        "description": "Sprint, distance, and field-event training for school athletics meets",
+        "schedule": "Tuesdays and Fridays, 4:00 PM - 5:30 PM",
+        "max_participants": 24,
+        "participants": []
+    },
     "Art Studio": {
         "description": "Explore painting, drawing, and mixed media in a creative environment",
         "schedule": "Tuesdays, 3:30 PM - 5:00 PM",
@@ -63,6 +78,18 @@ activities = {
         "max_participants": 25,
         "participants": []
     },
+    "Photography Club": {
+        "description": "Learn composition, lighting, and storytelling through digital photography",
+        "schedule": "Wednesdays, 3:30 PM - 5:00 PM",
+        "max_participants": 14,
+        "participants": []
+    },
+    "Music Ensemble": {
+        "description": "Practice instrumental and vocal performance for school events and concerts",
+        "schedule": "Fridays, 3:30 PM - 5:00 PM",
+        "max_participants": 20,
+        "participants": []
+    },
     "Math Olympiad": {
         "description": "Prepare for and compete in regional and national mathematics competitions",
         "schedule": "Thursdays, 3:30 PM - 5:00 PM",
@@ -73,6 +100,18 @@ activities = {
         "description": "Develop critical thinking, research, and public speaking through competitive debate",
         "schedule": "Mondays and Fridays, 3:30 PM - 5:00 PM",
         "max_participants": 16,
+        "participants": []
+    },
+    "Robotics Club": {
+        "description": "Design, build, and program robots for hands-on engineering challenges",
+        "schedule": "Wednesdays and Thursdays, 3:30 PM - 5:00 PM",
+        "max_participants": 18,
+        "participants": []
+    },
+    "Science Society": {
+        "description": "Explore experiments, scientific inquiry, and STEM fair preparation",
+        "schedule": "Mondays, 3:30 PM - 5:00 PM",
+        "max_participants": 20,
         "participants": []
     }
 }
@@ -98,10 +137,19 @@ def signup_for_activity(activity_name: str, email: str):
     # Get the specific activity
     activity = activities[activity_name]
 
-    # Check if student is already signed up
-    if email in activity["participants"]:
-        raise HTTPException(status_code=400, detail="Student is already signed up for this activity")
+    normalized_email = email.strip().lower()
+    if not normalized_email:
+        raise HTTPException(status_code=400, detail="Email is required")
 
-    # Add student
-    activity["participants"].append(email)
-    return {"message": f"Signed up {email} for {activity_name}"}
+    with signup_lock:
+        # Treat emails case-insensitively and ignore surrounding whitespace
+        if any(participant.strip().lower() == normalized_email for participant in activity["participants"]):
+            raise HTTPException(status_code=400, detail="Student is already signed up for this activity")
+
+        if len(activity["participants"]) >= activity["max_participants"]:
+            raise HTTPException(status_code=400, detail="This activity is already full")
+
+        # Add student
+        activity["participants"].append(normalized_email)
+
+    return {"message": f"Signed up {normalized_email} for {activity_name}"}
