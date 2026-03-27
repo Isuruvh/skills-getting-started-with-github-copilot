@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const submitButton = signupForm.querySelector('button[type="submit"]');
+  let isSubmitting = false;
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -45,8 +47,23 @@ document.addEventListener("DOMContentLoaded", () => {
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const email = document.getElementById("email").value;
+    if (isSubmitting) {
+      return;
+    }
+
+    const emailInput = document.getElementById("email");
+    const email = emailInput.value.trim().toLowerCase();
     const activity = document.getElementById("activity").value;
+
+    if (!email) {
+      messageDiv.textContent = "Please enter a valid email.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      return;
+    }
+
+    isSubmitting = true;
+    submitButton.disabled = true;
 
     try {
       const response = await fetch(
@@ -62,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -78,6 +96,9 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    } finally {
+      isSubmitting = false;
+      submitButton.disabled = false;
     }
   });
 
